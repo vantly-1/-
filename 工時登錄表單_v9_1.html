@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<title>工時登錄表單</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--accent:#c7551f;--steel:#1f4e78;--ok:#2a7a4a;--err:#b83030;--line:#ddd;--bg:#f5f3ee;--white:#fff;--font:"Noto Sans TC","Noto Sans Thai","Noto Sans",sans-serif}
+body{font-family:var(--font);background:var(--bg);color:#1a2332;font-size:15px;padding-bottom:40px}
+.header{background:var(--steel);color:#fff;padding:12px 16px;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:100}
+.header h1{font-size:16px;font-weight:700}
+.header .sub{font-size:11px;opacity:.75}
+.card{background:var(--white);margin:12px;border-radius:6px;padding:14px;box-shadow:0 1px 4px rgba(0,0,0,.08)}
+.card h2{font-size:12px;text-transform:uppercase;letter-spacing:1px;color:var(--steel);margin-bottom:12px;padding-bottom:6px;border-bottom:2px solid var(--steel)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.field{margin-bottom:10px}
+.field:last-child{margin-bottom:0}
+label{display:block;font-size:12px;font-weight:600;color:#5a6b7a;margin-bottom:4px}
+.time-hint{display:none}
+.t-box{display:flex;align-items:center;gap:4px}
+.t-num{width:48px;padding:9px 4px;border:1.5px solid var(--line);border-radius:5px;font:inherit;font-size:15px;font-weight:600;text-align:center;background:#fdfcfa;-moz-appearance:textfield}
+.t-num::-webkit-outer-spin-button,.t-num::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.t-num:focus{outline:none;border-color:var(--accent);background:#fff}
+.t-sep{font-size:18px;font-weight:700;color:var(--steel);line-height:1}
+input,select{width:100%;padding:10px 11px;border:1.5px solid var(--line);border-radius:5px;font:inherit;font-size:14px;background:#fdfcfa;-webkit-appearance:none}
+input:focus,select:focus{outline:none;border-color:var(--accent);background:#fff}
+.calc{background:#eef2f8;border-radius:5px;padding:10px 14px;display:flex;gap:24px;margin-top:4px}
+.calc .val{font-size:22px;font-weight:700;color:var(--steel)}
+.calc .lbl{font-size:10px;color:#7a8898}
+.calc .warn{color:var(--err);font-size:12px;font-weight:600;align-self:center}
+.btn{width:100%;padding:13px;border:none;border-radius:5px;font:inherit;font-size:15px;font-weight:700;cursor:pointer;margin-top:4px}
+.btn-submit{background:var(--accent);color:#fff}
+.btn-submit:hover{background:#a84518}
+.btn-submit:disabled{background:#ccc;cursor:not-allowed}
+.btn-clear{background:transparent;border:1.5px solid var(--line);color:#7a8898;margin-top:8px}
+.status{border-radius:5px;padding:10px 14px;font-size:13px;font-weight:600;text-align:center;margin-top:8px;display:none}
+.status.ok{background:#e8f5e9;color:var(--ok);display:block}
+.status.err{background:#fde8e8;color:var(--err);display:block}
+.status.loading{background:#e8eef5;color:var(--steel);display:block}
+.cfg-note{font-size:11px;color:#e8b88a;margin-top:4px;line-height:1.4}
+/* 刪除紀錄 */
+.rec-list{margin-top:8px}
+.rec-item{display:flex;align-items:center;justify-content:space-between;padding:8px 10px;border:1px solid var(--line);border-radius:4px;margin-bottom:6px;background:#fdfcfa;font-size:13px;gap:8px}
+.rec-item:last-child{margin-bottom:0}
+.rec-info{flex:1;min-width:0;line-height:1.5}
+.rec-info strong{color:var(--steel)}
+.rec-info small{color:#7a8898;font-size:11px}
+.btn-del{background:#fde8e8;color:var(--err);border:1.5px solid #f5baba;border-radius:4px;padding:5px 12px;font-size:13px;cursor:pointer;white-space:nowrap;flex-shrink:0}
+.btn-del:hover{background:var(--err);color:#fff}
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:999;align-items:center;justify-content:center}
+.modal-overlay.show{display:flex}
+.modal-box{background:#fff;border-radius:8px;padding:20px;width:90%;max-width:360px;box-shadow:0 4px 24px rgba(0,0,0,.2)}
+.modal-box h3{font-size:15px;margin-bottom:10px;color:var(--err)}
+.modal-box p{font-size:13px;color:#444;margin-bottom:16px;line-height:1.6}
+.modal-btns{display:flex;gap:8px;justify-content:flex-end}
+.modal-btns button{padding:8px 18px;border:none;border-radius:4px;font:inherit;font-size:14px;cursor:pointer}
+.btn-cancel{background:#eee;color:#555}
+.btn-confirm-del{background:var(--err);color:#fff}
+/* 連線狀態指示 */
+.conn-dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:5px}
+.conn-dot.ok{background:#4caf50}
+.conn-dot.err{background:#f44336}
+.conn-dot.check{background:#ff9800}
+/* 語言切換 */
+.lang-bar{display:flex;gap:6px;align-items:center}
+.lang-btn{padding:4px 10px;border:1.5px solid rgba(255,255,255,.4);border-radius:20px;background:transparent;color:#fff;font-size:12px;font-weight:600;cursor:pointer;transition:.2s}
+.lang-btn:hover{background:rgba(255,255,255,.15)}
+.lang-btn.active{background:#fff;color:var(--steel)}
+</style>
+</head>
+<body>
+<div class="header">
+  <div>
+    <div class="h1" id="txt_title">⚙ 工時登錄表單</div>
+    <div class="sub" id="connStatus"><span class="conn-dot check" id="connDot"></span><span id="txt_conn">連線檢查中...</span></div>
+  </div>
+  <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
+    <div class="lang-bar">
+      <button class="lang-btn active" onclick="setLang('zh')">中文</button>
+      <button class="lang-btn" onclick="setLang('vi')">Tiếng Việt</button>
+      <button class="lang-btn" onclick="setLang('th')">ภาษาไทย</button>
+      <button class="lang-btn" onclick="setLang('id')">Indonesia</button>
+    </div>
+    <div style="font-size:11px;opacity:.75;text-align:right" id="recCount">－</div>
+  </div>
+</div>
+
+<!-- Supabase 設定說明（未設定時顯示） -->
+<div class="card" id="setupCard" style="display:none">
+  <h2>⚠ 需要設定雲端連線</h2>
+  <p style="font-size:13px;color:#666;line-height:1.6">請依照設定指南完成 Supabase 設定後，將<br>
+  <b>SUPABASE_URL</b> 和 <b>SUPABASE_KEY</b> 填入檔案頂端。</p>
+</div>
+
+<div class="card">
+  <h2 id="txt_basic">基本資訊</h2>
+  <div class="grid2">
+    <div class="field"><label id="txt_date">日期</label><input type="date" id="f_date"></div>
+    <div class="field"><label id="txt_cat">類別</label>
+      <input list="cat_dl" id="f_cat" id="ph_cat" placeholder="選擇或輸入">
+      <datalist id="cat_dl"><option value="焊接"><option value="架模"><option value="鐳割"><option value="沖孔"><option value="彎管"><option value="沖壓"><option value="研磨"></datalist>
+    </div>
+  </div>
+  <div class="grid2">
+    <div class="field"><label id="txt_person">人員姓名</label>
+      <input list="person_dl" id="f_person" placeholder="選擇或輸入">
+      <datalist id="person_dl"><option value="呂揚斌"><option value="木哈曼"><option value="杜黃山"><option value="穆賽榮"><option value="羅俊民"><option value="鄭明欽"><option value="陳冠杰"></datalist>
+    </div>
+    <div class="field"><label id="txt_model">機型</label>
+      <input list="model_dl" id="f_model" placeholder="選擇或輸入">
+      <datalist id="model_dl"><option value="AD4"><option value="AF08"><option value="B3925/B3935"><option value="CC03OT"><option value="DA01UB"><option value="JLD173"><option value="JOHN02"><option value="TS01MB"><option value="工具車"><option value="銓量"></datalist>
+    </div>
+  </div>
+  <div class="grid2">
+    <div class="field"><label id="txt_machine">機台號碼</label><input type="text" id="f_machine" placeholder="例：A1、3號機"></div>
+    <div class="field"><label id="txt_table">桌次</label><input type="text" id="f_table" placeholder="例：1+2、B3"></div>
+  </div>
+</div>
+
+<div class="card">
+  <h2 id="txt_time">時間 / 排程</h2>
+  <div class="grid3">
+    <div class="field">
+      <label id="txt_start">開始時間</label>
+      <div class="t-box">
+        <input type="number" class="t-num" id="f_start_h" value="8" min="0" max="22" oninput="clampH(this,22);syncTime()">
+        <span class="t-sep">:</span>
+        <input type="number" class="t-num" id="f_start_m" value="0" min="0" max="59" oninput="clampH(this,59);syncTime()">
+        <input type="hidden" id="f_start" value="08:00">
+      </div>
+    </div>
+    <div class="field">
+      <label id="txt_end">結束時間</label>
+      <div class="t-box">
+        <input type="number" class="t-num" id="f_end_h" value="17" min="0" max="22" oninput="clampH(this,22);syncTime()">
+        <span class="t-sep">:</span>
+        <input type="number" class="t-num" id="f_end_m" value="20" min="0" max="59" oninput="clampH(this,59);syncTime()">
+        <input type="hidden" id="f_end" value="17:20">
+      </div>
+    </div>
+    <div class="field">
+      <label id="txt_rest">休息(分鐘)</label>
+      <input type="number" id="f_rest" value="80" min="0" placeholder="輸入分鐘數">
+    </div>
+  </div>
+  <div class="grid2">
+    <div class="field"><label id="txt_sched">排程單號</label><input type="text" id="f_sched" placeholder="自由輸入"></div>
+    <div class="field"><label id="txt_qty">數量</label><input type="number" id="f_qty" min="0" placeholder="產出數量"></div>
+  </div>
+  <div class="calc" id="calcBox">
+    <div><div class="lbl" id="txt_hrs">實際工時</div><div class="val" id="calcH">7.33 時</div></div>
+    <div><div class="lbl" id="txt_min">分鐘數</div><div class="val" id="calcM">440 分</div></div>
+    <div class="warn" id="calcWarn"></div>
+  </div>
+</div>
+
+<div class="card">
+  <h2 id="txt_process">工序內容</h2>
+  <div class="field"><label id="txt_content">工序內容</label><input type="text" id="f_content" placeholder="例：後貼地管組"></div>
+  <div class="grid3">
+    <div class="field"><label id="txt_weld">焊接長度 (英吋)</label><input type="number" id="f_weld_len" min="0" step="0.1" placeholder="例：16、101.6"></div>
+    <div class="field"><label id="txt_std">標工 (S/支)</label><input type="number" id="f_std_s" min="0" step="0.1" placeholder="標準工時秒數"></div>
+    <div class="field"><label id="txt_spec">規格 / 長度</label><input type="text" id="f_spec" placeholder="例：ψ40×80×1.8T"></div>
+  </div>
+  <div class="grid2">
+    <div class="field"><label id="txt_note">備註</label><input type="text" id="f_note" placeholder="補充說明"></div>
+  </div>
+  <button class="btn btn-submit" id="btnSubmit">送出工時紀錄</button>
+  <button class="btn btn-clear" id="btnClear"><span id="txt_clear">清空表單</span></button>
+  <div class="status" id="statusMsg"></div>
+</div>
+
+<div class="card">
+  <h2 id="txt_recent">🗑 最近紀錄（可刪除）</h2>
+  <div id="recentList"><p style="font-size:13px;color:#aaa;text-align:center;padding:10px 0">載入中...</p></div>
+</div>
+
+<!-- 刪除確認 Modal -->
+<div class="modal-overlay" id="delModal">
+  <div class="modal-box">
+    <h3 id="txt_del_title">⚠ 確認刪除</h3>
+    <p id="delModalText">確定要刪除這筆紀錄嗎？此操作無法復原。</p>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closeDelModal()" id="txt_cancel">取消</button>
+      <button class="btn-confirm-del" id="btnConfirmDel"><span id="txt_confirm_del">確認刪除</span></button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════
+// 多語言系統
+// ══════════════════════════════════════
+const LANGS = {
+  zh: {
+    title:'⚙ 工時登錄表單',
+    conn_checking:'連線檢查中...', conn_ok:'雲端連線正常', conn_fail:'連線失敗',
+    basic:'基本資訊', time:'時間 / 排程', process:'工序內容', recent:'🗑 最近紀錄（可刪除）',
+    date:'日期', cat:'類別', person:'人員姓名', model:'機型',
+    machine:'機台號碼', table:'桌次',
+    start:'開始時間', end:'結束時間', rest:'休息(分鐘)',
+    sched:'排程單號', qty:'數量', content:'工序內容',
+    weld:'焊接長度 (英吋)', std:'標工 (S/支)', spec:'規格 / 長度', note:'備註',
+    hrs:'實際工時', min:'分鐘數',
+    submit:'送出工時紀錄', clear:'清空表單',
+    del_title:'⚠ 確認刪除', cancel:'取消', confirm_del:'確認刪除',
+    ph_cat:'選擇或輸入', ph_person:'選擇或輸入', ph_machine:'例：A1、3號機',
+    ph_table:'例：1+2、B3', ph_sched:'自由輸入', ph_qty:'產出數量',
+    ph_content:'例：後貼地管組', ph_weld:'例：16、101.6',
+    ph_std:'標準工時秒數', ph_spec:'例：ψ40×80×1.8T', ph_note:'補充說明',
+    err_date:'請選擇日期', err_person:'請輸入人員姓名',
+    err_time:'開始/結束時間有誤，請重新確認',
+    sending:'送出中...', sent:'✓ 已送出！',
+    send_fail:'送出失敗：', net_err:'網路錯誤，請確認連線：',
+    loading:'載入中...', no_rec:'尚無紀錄', load_fail:'載入失敗：',
+    del_confirm:'確定要刪除這筆紀錄嗎？此操作無法復原。',
+    deleting:'刪除中...', deleted:'✓ 已刪除',
+    del_fail:'刪除失敗：', net_err2:'網路錯誤：',
+    rec_total:'共 {n} 筆紀錄',
+    time_err:'⚠ 結束時間早於開始時間',
+    time_same:'⚠ 開始與結束時間相同，工時為0',
+    unit_h:'時', unit_m:'分',
+  },
+  vi: {
+    title:'⚙ Biểu Mẫu Giờ Làm Việc',
+    conn_checking:'Đang kiểm tra kết nối...', conn_ok:'Kết nối đám mây bình thường', conn_fail:'Kết nối thất bại',
+    basic:'Thông Tin Cơ Bản', time:'Thời Gian / Lịch Trình', process:'Nội Dung Công Đoạn', recent:'🗑 Ghi Chú Gần Đây（Có thể xóa）',
+    date:'Ngày', cat:'Loại', person:'Tên Nhân Viên', model:'Kiểu Máy',
+    machine:'Số Máy', table:'Số Bàn',
+    start:'Giờ Bắt Đầu', end:'Giờ Kết Thúc', rest:'Nghỉ (Phút)',
+    sched:'Số Lịch Trình', qty:'Số Lượng', content:'Nội Dung Công Đoạn',
+    weld:'Chiều Dài Hàn (Inch)', std:'Giờ Chuẩn (S/cái)', spec:'Quy Cách / Kích Thước', note:'Ghi Chú',
+    hrs:'Giờ Thực Tế', min:'Số Phút',
+    submit:'Gửi Giờ Làm Việc', clear:'Xóa Biểu Mẫu',
+    del_title:'⚠ Xác Nhận Xóa', cancel:'Hủy', confirm_del:'Xác Nhận Xóa',
+    ph_cat:'Chọn hoặc nhập', ph_person:'Chọn hoặc nhập', ph_machine:'VD: A1, Máy số 3',
+    ph_table:'VD: 1+2, B3', ph_sched:'Nhập tự do', ph_qty:'Số lượng sản xuất',
+    ph_content:'VD: Hàn ống đất sau', ph_weld:'VD: 16, 101.6',
+    ph_std:'Giây giờ chuẩn', ph_spec:'VD: ψ40×80×1.8T', ph_note:'Ghi chú bổ sung',
+    err_date:'Vui lòng chọn ngày', err_person:'Vui lòng nhập tên nhân viên',
+    err_time:'Thời gian bắt đầu/kết thúc không hợp lệ, vui lòng kiểm tra lại',
+    sending:'Đang gửi...', sent:'✓ Đã gửi！',
+    send_fail:'Gửi thất bại：', net_err:'Lỗi mạng, vui lòng kiểm tra kết nối：',
+    loading:'Đang tải...', no_rec:'Chưa có ghi chú', load_fail:'Tải thất bại：',
+    del_confirm:'Bạn có chắc chắn muốn xóa bản ghi này không? Thao tác này không thể hoàn tác.',
+    deleting:'Đang xóa...', deleted:'✓ Đã xóa',
+    del_fail:'Xóa thất bại：', net_err2:'Lỗi mạng：',
+    rec_total:'Tổng cộng {n} bản ghi',
+    time_err:'⚠ Giờ kết thúc sớm hơn giờ bắt đầu',
+    time_same:'⚠ Giờ bắt đầu và kết thúc giống nhau, giờ làm = 0',
+    unit_h:'giờ', unit_m:'phút',
+  },
+  th: {
+    title:'⚙ แบบฟอร์มบันทึกชั่วโมงทำงาน',
+    conn_checking:'กำลังตรวจสอบการเชื่อมต่อ...', conn_ok:'เชื่อมต่อคลาวด์ปกติ', conn_fail:'การเชื่อมต่อล้มเหลว',
+    basic:'ข้อมูลพื้นฐาน', time:'เวลา / ตารางงาน', process:'เนื้อหากระบวนการ', recent:'🗑 บันทึกล่าสุด（ลบได้）',
+    date:'วันที่', cat:'ประเภท', person:'ชื่อพนักงาน', model:'รุ่นเครื่อง',
+    machine:'หมายเลขเครื่อง', table:'หมายเลขโต๊ะ',
+    start:'เวลาเริ่ม', end:'เวลาสิ้นสุด', rest:'พัก (นาที)',
+    sched:'หมายเลขตาราง', qty:'จำนวน', content:'เนื้อหากระบวนการ',
+    weld:'ความยาวเชื่อม (นิ้ว)', std:'เวลามาตรฐาน (S/ชิ้น)', spec:'ข้อกำหนด / ขนาด', note:'หมายเหตุ',
+    hrs:'ชั่วโมงจริง', min:'จำนวนนาที',
+    submit:'ส่งบันทึกชั่วโมงทำงาน', clear:'ล้างแบบฟอร์ม',
+    del_title:'⚠ ยืนยันการลบ', cancel:'ยกเลิก', confirm_del:'ยืนยันการลบ',
+    ph_cat:'เลือกหรือพิมพ์', ph_person:'เลือกหรือพิมพ์', ph_machine:'เช่น: A1, เครื่องที่ 3',
+    ph_table:'เช่น: 1+2, B3', ph_sched:'พิมพ์ได้เลย', ph_qty:'จำนวนผลผลิต',
+    ph_content:'เช่น: เชื่อมท่อหลัง', ph_weld:'เช่น: 16, 101.6',
+    ph_std:'วินาทีมาตรฐาน', ph_spec:'เช่น: ψ40×80×1.8T', ph_note:'หมายเหตุเพิ่มเติม',
+    err_date:'กรุณาเลือกวันที่', err_person:'กรุณากรอกชื่อพนักงาน',
+    err_time:'เวลาเริ่ม/สิ้นสุดไม่ถูกต้อง กรุณาตรวจสอบใหม่',
+    sending:'กำลังส่ง...', sent:'✓ ส่งแล้ว！',
+    send_fail:'ส่งล้มเหลว：', net_err:'ข้อผิดพลาดเครือข่าย กรุณาตรวจสอบการเชื่อมต่อ：',
+    loading:'กำลังโหลด...', no_rec:'ไม่มีบันทึก', load_fail:'โหลดล้มเหลว：',
+    del_confirm:'แน่ใจหรือไม่ว่าต้องการลบบันทึกนี้? การดำเนินการนี้ไม่สามารถยกเลิกได้',
+    deleting:'กำลังลบ...', deleted:'✓ ลบแล้ว',
+    del_fail:'ลบล้มเหลว：', net_err2:'ข้อผิดพลาดเครือข่าย：',
+    rec_total:'ทั้งหมด {n} รายการ',
+    time_err:'⚠ เวลาสิ้นสุดก่อนเวลาเริ่มต้น',
+    time_same:'⚠ เวลาเริ่มและสิ้นสุดเหมือนกัน ชั่วโมงทำงาน = 0',
+    unit_h:'ชม.', unit_m:'น.',
+  },
+  id: {
+    title:'⚙ Formulir Jam Kerja',
+    conn_checking:'Memeriksa koneksi...', conn_ok:'Koneksi cloud normal', conn_fail:'Koneksi gagal',
+    basic:'Informasi Dasar', time:'Waktu / Jadwal', process:'Isi Proses Kerja', recent:'🗑 Catatan Terbaru（Dapat dihapus）',
+    date:'Tanggal', cat:'Kategori', person:'Nama Karyawan', model:'Tipe Mesin',
+    machine:'Nomor Mesin', table:'Nomor Meja',
+    start:'Jam Mulai', end:'Jam Selesai', rest:'Istirahat (Menit)',
+    sched:'Nomor Jadwal', qty:'Jumlah', content:'Isi Proses Kerja',
+    weld:'Panjang Las (Inci)', std:'Waktu Standar (S/pcs)', spec:'Spesifikasi / Ukuran', note:'Keterangan',
+    hrs:'Jam Aktual', min:'Jumlah Menit',
+    submit:'Kirim Catatan Jam Kerja', clear:'Hapus Formulir',
+    del_title:'⚠ Konfirmasi Hapus', cancel:'Batal', confirm_del:'Konfirmasi Hapus',
+    ph_cat:'Pilih atau ketik', ph_person:'Pilih atau ketik', ph_machine:'Contoh: A1, Mesin 3',
+    ph_table:'Contoh: 1+2, B3', ph_sched:'Input bebas', ph_qty:'Jumlah produksi',
+    ph_content:'Contoh: Las pipa belakang', ph_weld:'Contoh: 16, 101.6',
+    ph_std:'Detik waktu standar', ph_spec:'Contoh: ψ40×80×1.8T', ph_note:'Catatan tambahan',
+    err_date:'Silakan pilih tanggal', err_person:'Silakan masukkan nama karyawan',
+    err_time:'Waktu mulai/selesai tidak valid, silakan periksa kembali',
+    sending:'Mengirim...', sent:'✓ Terkirim！',
+    send_fail:'Pengiriman gagal：', net_err:'Kesalahan jaringan, periksa koneksi：',
+    loading:'Memuat...', no_rec:'Belum ada catatan', load_fail:'Gagal memuat：',
+    del_confirm:'Apakah Anda yakin ingin menghapus catatan ini? Tindakan ini tidak dapat dibatalkan.',
+    deleting:'Menghapus...', deleted:'✓ Terhapus',
+    del_fail:'Hapus gagal：', net_err2:'Kesalahan jaringan：',
+    rec_total:'Total {n} catatan',
+    time_err:'⚠ Jam selesai lebih awal dari jam mulai',
+    time_same:'⚠ Jam mulai dan selesai sama, jam kerja = 0',
+    unit_h:'jam', unit_m:'mnt',
+  },
+};
+
+let currentLang = 'zh';
+
+function setLang(lang){
+  currentLang = lang;
+  const L = LANGS[lang];
+  document.documentElement.lang = lang==='zh'?'zh-Hant':lang;
+
+  // 語言按鈕 active 狀態
+  document.querySelectorAll('.lang-btn').forEach(b=>{
+    b.classList.toggle('active', b.textContent===({zh:'中文',vi:'Tiếng Việt',th:'ภาษาไทย',id:'Indonesia'}[lang]));
+  });
+
+  // 所有文字
+  const set = (id,val)=>{ const el=document.getElementById(id); if(el) el.textContent=val; };
+  const ph  = (id,val)=>{ const el=document.getElementById(id); if(el) el.placeholder=val; };
+
+  set('txt_title',   L.title);
+  set('txt_basic',   L.basic);
+  set('txt_time',    L.time);
+  set('txt_process', L.process);
+  set('txt_recent',  L.recent);
+  set('txt_date',    L.date);
+  set('txt_cat',     L.cat);
+  set('txt_person',  L.person);
+  set('txt_model',   L.model);
+  set('txt_machine', L.machine);
+  set('txt_table',   L.table);
+  set('txt_start',   L.start);
+  set('txt_end',     L.end);
+  set('txt_rest',    L.rest);
+  set('txt_sched',   L.sched);
+  set('txt_qty',     L.qty);
+  set('txt_content', L.content);
+  set('txt_weld',    L.weld);
+  set('txt_std',     L.std);
+  set('txt_spec',    L.spec);
+  set('txt_note',    L.note);
+  set('txt_hrs',     L.hrs);
+  set('txt_min',     L.min);
+  set('txt_submit',  L.submit);
+  set('txt_clear',   L.clear);
+  set('txt_del_title', L.del_title);
+  set('txt_cancel',    L.cancel);
+  set('txt_confirm_del', L.confirm_del);
+
+  ph('f_cat',      L.ph_cat);
+  ph('f_person',   L.ph_person);
+  ph('f_machine',  L.ph_machine);
+  ph('f_table',    L.ph_table);
+  ph('f_sched',    L.ph_sched);
+  ph('f_qty',      L.ph_qty);
+  ph('f_content',  L.ph_content);
+  ph('f_weld_len', L.ph_weld);
+  ph('f_std_s',    L.ph_std);
+  ph('f_spec',     L.ph_spec);
+  ph('f_note',     L.ph_note);
+
+  // 工時顯示單位
+  const m = calcMins();
+  document.getElementById('calcH').textContent = (m/60).toFixed(2)+' '+L.unit_h;
+  document.getElementById('calcM').textContent = m+' '+L.unit_m;
+
+  // 更新 connStatus 文字（保留 dot）
+  const dot = document.getElementById('connDot');
+  const connTxt = document.getElementById('txt_conn');
+  if(connTxt){
+    if(dot.classList.contains('ok')) connTxt.textContent = L.conn_ok;
+    else if(dot.classList.contains('err')) connTxt.textContent = L.conn_fail;
+    else connTxt.textContent = L.conn_checking;
+  }
+
+  // 儲存語言偏好
+  try{ localStorage.setItem('lang', lang); }catch(e){}
+}
+
+// 語言字串取得
+function t(key){ return LANGS[currentLang][key] || LANGS['zh'][key] || key; }
+
+// 恢復上次語言
+try{
+  const saved = localStorage.getItem('lang');
+  if(saved && LANGS[saved]) setLang(saved);
+}catch(e){}
+
+
+// ★★★ 請將 Supabase 設定填入這裡 ★★★
+const SUPABASE_URL = 'https://grfxgtznzqrfjnbjkqvs.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_wU-9AjKmljlzUE3VmANNKA_M1gtYeTz';
+const TABLE_NAME   = 'worklog';
+// ★★★★★★★★★★★★★★★★★★★★★★★
+
+const $ = id => document.getElementById(id);
+
+// ── 連線狀態 ──
+async function checkConn(){
+  if(!SUPABASE_URL || !SUPABASE_KEY){
+    $('connDot').className='conn-dot err';
+    $('connStatus').innerHTML='<span class="conn-dot err" id="connDot"></span><span id="txt_conn">未設定雲端連線</span>';
+    $('setupCard').style.display='block';
+    $('btnSubmit').disabled=true;
+    return false;
+  }
+  // 初始顯示連線中
+  $('connDot').className='conn-dot check';
+  const dotEl = document.getElementById('connDot');
+  const txtEl = document.getElementById('txt_conn');
+  if(txtEl) txtEl.textContent = t('conn_checking');
+
+  const timeout = new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout')),8000));
+  try{
+    const r=await Promise.race([
+      fetch(`${SUPABASE_URL}/rest/v1/${TABLE_NAME}?select=id&limit=1`,{
+        headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY}
+      }), timeout
+    ]);
+    const cnt=await fetch(`${SUPABASE_URL}/rest/v1/${TABLE_NAME}?select=id`,{
+      headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY,'Prefer':'count=exact'}
+    });
+    const total=cnt.headers.get('content-range')?.split('/')[1]||'?';
+    $('connDot').className='conn-dot ok';
+    $('connStatus').innerHTML=`<span class="conn-dot ok" id="connDot"></span><span id="txt_conn">${t('conn_ok')}</span>`;
+    $('recCount').textContent=t('rec_total').replace('{n}',total);
+    $('btnSubmit').disabled=false;
+    return true;
+  } catch(e){
+    $('connDot').className='conn-dot err';
+    $('connStatus').innerHTML=`<span class="conn-dot err" id="connDot"></span><span id="txt_conn">${t('conn_fail')} (${e.message})</span>`;
+    $('btnSubmit').disabled=true;
+    return false;
+  }
+}
+
+// ── 工時計算 ──
+// 限制數字範圍
+function clampH(el, max){
+  let v = parseInt(el.value)||0;
+  if(v<0) v=0; if(v>max) v=max;
+  el.value = v;
+}
+// 同步 hidden input
+function syncTime(){
+  const sh=String(parseInt($('f_start_h').value)||0).padStart(2,'0');
+  const sm=String(parseInt($('f_start_m').value)||0).padStart(2,'0');
+  const eh=String(parseInt($('f_end_h').value)||0).padStart(2,'0');
+  const em=String(parseInt($('f_end_m').value)||0).padStart(2,'0');
+  $('f_start').value=sh+':'+sm;
+  $('f_end').value=eh+':'+em;
+  syncTime();
+}
+function calcMins(){
+  const sh=parseInt($('f_start_h').value)||0, sm=parseInt($('f_start_m').value)||0;
+  const eh=parseInt($('f_end_h').value)||0,   em=parseInt($('f_end_m').value)||0;
+  const rest=parseInt($('f_rest').value||'0');
+  const m=(eh*60+em)-(sh*60+sm)-rest;
+  if(m<0){
+    $('calcWarn').textContent=`⚠ ${t('time_err')}　${String(sh).padStart(2,'0')}:${String(sm).padStart(2,'0')} → ${String(eh).padStart(2,'0')}:${String(em).padStart(2,'0')}`;
+    return 0;
+  }
+  if(m===0){ $('calcWarn').textContent=t('time_same'); return 0; }
+  $('calcWarn').textContent='';
+  return m;
+}
+function updateCalc(){
+  const m=calcMins();
+  $('calcH').textContent=(m/60).toFixed(2)+' '+t('unit_h');
+  $('calcM').textContent=m+' '+t('unit_m');
+}
+['f_start_h','f_start_m','f_end_h','f_end_m','f_rest'].forEach(id=>$(id).addEventListener('input',updateCalc));
+updateCalc();
+
+// ── 送出 ──
+$('btnSubmit').onclick=async()=>{
+  const date=$('f_date').value, cat=$('f_cat').value.trim();
+  const person=$('f_person').value.trim(), model=$('f_model').value.trim();
+  const machine=$('f_machine').value.trim(), table_no=$('f_table').value.trim();
+  const start=$('f_start').value, end=$('f_end').value;
+  const rest=parseInt($('f_rest').value||'0');
+  const schedule=$('f_sched').value.trim();
+  const qty=parseFloat($('f_qty').value)||0;
+  const content=$('f_content').value.trim();
+  const spec=$('f_spec').value.trim();
+  const note=$('f_note').value.trim();
+  const mins=calcMins();
+
+  if(!date){ showStatus(t('err_date'),'err'); return; }
+  if(!person){ showStatus(t('err_person'),'err'); return; }
+  if(mins<=0){ showStatus(t('err_time'),'err'); return; }
+
+  showStatus(t('sending'),'loading');
+  $('btnSubmit').disabled=true;
+
+  const weld_len=parseFloat($('f_weld_len').value)||0;
+  const std_s=parseFloat($('f_std_s').value)||0;
+  const payload={
+    date, cat, person, machine, table_no, start_time:start, end_time:end,
+    rest_min:rest, work_mins:mins, schedule, model, content, qty, spec, note,
+    weld_len, std_s, created_at: new Date().toISOString()
+  };
+
+  try{
+    const res=await fetch(`${SUPABASE_URL}/rest/v1/${TABLE_NAME}`,{
+      method:'POST',
+      headers:{
+        'apikey':SUPABASE_KEY,
+        'Authorization':'Bearer '+SUPABASE_KEY,
+        'Content-Type':'application/json',
+        'Prefer':'return=minimal'
+      },
+      body: JSON.stringify(payload)
+    });
+    if(res.ok){
+      showStatus(`${t('sent')} ${date} ${person} ${cat} ${(mins/60).toFixed(2)}${t('unit_h')}`,'ok');
+      clearForm();
+      checkConn();
+      setTimeout(loadRecent, 800);
+    } else {
+      const err=await res.text();
+      showStatus(t('send_fail')+err,'err');
+    }
+  } catch(e){
+    showStatus(t('net_err')+e.message,'err');
+  }
+  $('btnSubmit').disabled=false;
+};
+
+function clearForm(){
+  ['f_cat','f_person','f_model','f_machine','f_table','f_sched','f_qty','f_content','f_weld_len','f_std_s','f_spec','f_note']
+    .forEach(id=>$(id).value='');
+  $('f_start_h').value=8; $('f_start_m').value=0;
+  $('f_end_h').value=17; $('f_end_m').value=20;
+  syncTime(); $('f_rest').value=80; updateCalc();
+  updateCalc();
+}
+
+function showStatus(msg,type){
+  const el=$('statusMsg');
+  el.textContent=msg; el.className='status '+type;
+  if(type==='ok') setTimeout(()=>{el.className='status';},4000);
+}
+
+$('btnClear').onclick=()=>{ clearForm(); $('statusMsg').className='status'; };
+// 用本地時間設定今天日期（避免 UTC 時差問題）
+const _now=new Date();
+$('f_date').value=`${_now.getFullYear()}-${String(_now.getMonth()+1).padStart(2,'0')}-${String(_now.getDate()).padStart(2,'0')}`;
+checkConn();
+
+
+
+// ── 最近紀錄（含刪除） ──
+let pendingDeleteId = null;
+
+async function loadRecent(){
+  if(!SUPABASE_URL || !SUPABASE_KEY){ $('recentList').innerHTML='<p style="color:#aaa;font-size:13px">未設定雲端連線</p>'; return; }
+  try{
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/${TABLE_NAME}?select=*&order=id.desc&limit=20`,{
+      headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY}
+    });
+    const data = await r.json();
+    if(!Array.isArray(data)||data.length===0){
+      $('recentList').innerHTML='<p style="color:#aaa;font-size:13px;text-align:center;padding:10px 0">尚無紀錄</p>';
+      return;
+    }
+    $('recentList').innerHTML = data.map(rec=>{
+      const hrs = rec.work_mins ? (rec.work_mins/60).toFixed(2) : '0.00';
+      const label = [rec.date, rec.person, rec.cat, rec.model, rec.content, rec.schedule].filter(Boolean).join(' · ');
+      const sub = `${rec.start_time||rec.start||''}–${rec.end_time||rec.end||''}  ${hrs}時` + (rec.qty?`  數量:${rec.qty}`:'') + (rec.note?`  ${rec.note}`:'');
+      return `<div class="rec-item">
+        <div class="rec-info">
+          <strong>ID ${rec.id}</strong>　${label}<br>
+          <small>${sub}</small>
+        </div>
+        <button class="btn-del" onclick="confirmDelete(${rec.id},'${(rec.date||'')} ${(rec.person||'')} ${(rec.cat||'')}')">刪除</button>
+      </div>`;
+    }).join('');
+  }catch(e){
+    $('recentList').innerHTML='<p style="color:#b83030;font-size:13px">載入失敗：'+e.message+'</p>';
+  }
+}
+
+function confirmDelete(id, desc){
+  pendingDeleteId = id;
+  $('delModalText').textContent = `${t('del_confirm')}\n\nID ${id}：${desc}`;
+  $('delModal').classList.add('show');
+  $('btnConfirmDel').onclick = doDelete;
+}
+
+function closeDelModal(){
+  $('delModal').classList.remove('show');
+  pendingDeleteId = null;
+}
+
+async function doDelete(){
+  if(!pendingDeleteId) return;
+  const id = pendingDeleteId;
+  closeDelModal();
+  showStatus(t('deleting'),'loading');
+  try{
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/${TABLE_NAME}?id=eq.${id}`,{
+      method:'DELETE',
+      headers:{'apikey':SUPABASE_KEY,'Authorization':'Bearer '+SUPABASE_KEY,'Prefer':'return=minimal'}
+    });
+    if(res.ok){
+      showStatus(`${t('deleted')} ID ${id}`,'ok');
+      loadRecent();
+      checkConn();
+    } else {
+      const err = await res.text();
+      showStatus(t('del_fail')+err,'err');
+    }
+  }catch(e){
+    showStatus(t('net_err2')+e.message,'err');
+  }
+}
+
+// 點擊 overlay 外部關閉
+$('delModal').addEventListener('click', function(e){ if(e.target===this) closeDelModal(); });
+
+// 送出後重載最近紀錄
+document.getElementById('btnSubmit').addEventListener('click', ()=>{ setTimeout(loadRecent, 1500); });
+
+loadRecent();
+</script>
+</body></html>
