@@ -15,6 +15,8 @@ body{font-family:var(--font);background:var(--bg);color:#1a2332;font-size:15px;p
 .card h2{font-size:12px;text-transform:uppercase;letter-spacing:1px;color:var(--steel);margin-bottom:12px;padding-bottom:6px;border-bottom:2px solid var(--steel)}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+.gridAuto{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px}
+select#f_dept{font-weight:700;border-color:var(--accent);background:#fff8f3}
 .field{margin-bottom:10px;position:relative}
 .field:last-child{margin-bottom:0}
 /* 自訂觸控下拉選單（取代原生 datalist，解決平板無法下拉選的問題） */
@@ -102,6 +104,10 @@ input:focus,select:focus{outline:none;border-color:var(--accent);background:#fff
 
 <div class="card">
   <h2 id="txt_basic">基本資訊</h2>
+  <div class="field">
+    <label id="txt_dept">部門單位</label>
+    <select id="f_dept"></select>
+  </div>
   <div class="grid2">
     <div class="field"><label id="txt_date">日期</label><input type="date" id="f_date"></div>
     <div class="field"><label id="txt_cat">類別</label>
@@ -112,7 +118,7 @@ input:focus,select:focus{outline:none;border-color:var(--accent);background:#fff
     <div class="field"><label id="txt_person">人員姓名</label>
       <input type="text" id="f_person" placeholder="選擇或輸入">
     </div>
-    <div class="field"><label id="txt_model">機型</label>
+    <div class="field" id="fieldWrap_model"><label id="txt_model">機型</label>
       <input type="text" id="f_model" placeholder="選擇或輸入">
     </div>
   </div>
@@ -148,7 +154,7 @@ input:focus,select:focus{outline:none;border-color:var(--accent);background:#fff
       <input type="number" id="f_rest" value="80" min="0" placeholder="輸入分鐘數">
     </div>
   </div>
-  <div class="grid2">
+  <div class="grid2" id="fieldWrap_schedQty">
     <div class="field"><label id="txt_sched">排程單號</label><input type="text" id="f_sched" placeholder="自由輸入"></div>
     <div class="field"><label id="txt_qty">數量</label><input type="number" id="f_qty" min="0" placeholder="產出數量"></div>
   </div>
@@ -161,11 +167,10 @@ input:focus,select:focus{outline:none;border-color:var(--accent);background:#fff
 
 <div class="card">
   <h2 id="txt_process">工序內容</h2>
-  <div class="field"><label id="txt_content">工序內容</label><input type="text" id="f_content" placeholder="例：後貼地管組"></div>
-  <div class="grid3">
-    <div class="field"><label id="txt_weld">焊接長度 (英吋)</label><input type="number" id="f_weld_len" min="0" step="0.1" placeholder="例：16、101.6"></div>
-    <div class="field"><label id="txt_std">標工 (S/支)</label><input type="number" id="f_std_s" min="0" step="0.1" placeholder="標準工時秒數"></div>
-    <div class="field"><label id="txt_spec">規格 / 長度</label><input type="text" id="f_spec" placeholder="例：ψ40×80×1.8T"></div>
+  <div class="field" id="fieldWrap_content"><label id="txt_content">工序內容</label><input type="text" id="f_content" placeholder="例：後貼地管組"></div>
+  <div class="gridAuto" id="extraFieldsContainer"></div>
+  <div id="paintBatchContainer" style="display:none">
+    <p style="font-size:12px;color:#888;margin:0 0 8px">同一天可一次登錄多筆排程/工作項目，開始/結束/休息時間、人員、日期共用同一筆。</p>
   </div>
   <div class="grid2">
     <div class="field"><label id="txt_note">備註</label><input type="text" id="f_note" placeholder="補充說明"></div>
@@ -388,7 +393,165 @@ function setLang(lang){
 
   // 儲存語言偏好
   try{ localStorage.setItem('lang', lang); }catch(e){}
+
+  // 重新套用目前部門的標籤覆寫(避免被上面的語言預設值蓋掉)
+  const deptSel = document.getElementById('f_dept');
+  if(deptSel) applyDeptLabels(deptSel.value);
 }
+
+// ★★★ 請將 Supabase 設定填入這裡 ★★★
+const SUPABASE_URL = 'https://grfxgtznzqrfjnbjkqvs.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_wU-9AjKmljlzUE3VmANNKA_M1gtYeTz';
+const TABLE_NAME   = 'worklog';
+// ★★★★★★★★★★★★★★★★★★★★★★★
+
+const $ = id => document.getElementById(id);
+
+// ══════════════════════════════════════
+// 部門單位設定（要新增單位，只要在這裡加一個區塊）
+// ══════════════════════════════════════
+const DEPT_CONFIG = {
+  '製造': {
+    catOptions: ['焊接','架模','鐳割','沖孔','彎管','沖壓','研磨','攻牙','黑身'],
+    extraFields: [
+      {id:'f_weld_len', key:'weld_len', label:'焊接長度 (英吋)', type:'number', step:'0.1', placeholder:'例：16、101.6'},
+      {id:'f_std_s',     key:'std_s',    label:'標工 (S/支)',     type:'number', step:'0.1', placeholder:'標準工時秒數'},
+      {id:'f_spec',      key:'spec',     label:'規格 / 長度',     type:'text',   placeholder:'例：ψ40×80×1.8T'},
+    ]
+  },
+  '烤漆': {
+    catOptions: ['烤漆','除屑','打磨','其他'],
+    coreLabels: { content:'烤漆內容', qty:'烤漆數量' },
+    extraFields: [
+      {id:'f_paint_std_s',  key:'paint_std_s',  label:'烤漆標工 (秒)', type:'number', step:'1', placeholder:'烤漆標準工時秒數'},
+      {id:'f_headcount',    key:'headcount',    label:'當日人數',      type:'number', step:'1', placeholder:'當日投入人數'},
+      {id:'f_deburr_std_s', key:'deburr_std_s', label:'除屑標工 (秒)', type:'number', step:'1', placeholder:'除屑標準工時秒數'},
+      {id:'f_polish_qty',   key:'polish_qty',   label:'打磨數量',      type:'number', step:'1', placeholder:'打磨數量'},
+      {id:'f_rpm',          key:'rpm',          label:'轉速 (rpm)',    type:'number', step:'1', placeholder:'轉速'},
+    ]
+  },
+  '裝配': {
+    catOptions: ['組裝','測試','包裝','品管'],
+    extraFields: [
+      {id:'f_bom_no',      key:'bom_no',      label:'BOM 料號',   type:'text',   placeholder:'例：BOM-2026-0113'},
+      {id:'f_assy_qty',    key:'assy_qty',    label:'組裝數量',   type:'number', step:'1', placeholder:'組裝完成數量'},
+      {id:'f_defect_qty',  key:'defect_qty',  label:'不良數量',   type:'number', step:'1', placeholder:'不良品數量'},
+    ]
+  },
+};
+const DEFAULT_DEPT = '製造';
+
+// 需要「一次登錄多筆」的部門
+const BATCH_DEPTS = ['烤漆'];
+let batchRows = [{}];
+
+function renderExtraFields(deptKey){
+  const cfg = DEPT_CONFIG[deptKey] || DEPT_CONFIG[DEFAULT_DEPT];
+  const isBatch = BATCH_DEPTS.includes(deptKey);
+
+  // 切換單筆欄位(機型/排程單號/數量/工序內容)的顯示
+  ['fieldWrap_model','fieldWrap_schedQty','fieldWrap_content'].forEach(id=>{
+    const el = document.getElementById(id);
+    if(el) el.style.display = isBatch ? 'none' : '';
+  });
+
+  const extraBox = document.getElementById('extraFieldsContainer');
+  const batchBox = document.getElementById('paintBatchContainer');
+
+  if(isBatch){
+    extraBox.style.display = 'none';
+    batchBox.style.display = '';
+    batchRows = [{}];
+    renderBatchRows();
+  } else {
+    extraBox.style.display = '';
+    batchBox.style.display = 'none';
+    extraBox.innerHTML = cfg.extraFields.map(f=>`
+      <div class="field">
+        <label>${f.label}</label>
+        <input type="${f.type}" id="${f.id}" ${f.type==='number' ? `min="0" step="${f.step||'1'}"` : ''} placeholder="${f.placeholder||''}">
+      </div>`).join('');
+  }
+}
+
+// ── 批次列（目前僅烤漆使用：排程單號/機型/烤漆內容/烤漆標工/當日人數/烤漆數量/除屑標工/打磨數量/轉速） ──
+function syncBatchRowsFromDOM(){
+  const els = document.querySelectorAll('#paintBatchContainer .batchRow');
+  if(!els.length) return;
+  batchRows = Array.from(els).map(el=>({
+    sched:        el.querySelector('.b_sched').value,
+    model:        el.querySelector('.b_model').value,
+    content:      el.querySelector('.b_content').value,
+    paint_std_s:  el.querySelector('.b_paint_std_s').value,
+    headcount:    el.querySelector('.b_headcount').value,
+    qty:          el.querySelector('.b_qty').value,
+    deburr_std_s: el.querySelector('.b_deburr_std_s').value,
+    polish_qty:   el.querySelector('.b_polish_qty').value,
+    rpm:          el.querySelector('.b_rpm').value,
+  }));
+}
+function addBatchRow(){
+  syncBatchRowsFromDOM();
+  const last = batchRows[batchRows.length-1] || {};
+  // 當日人數通常整天一樣,自動帶入上一筆的值,減少重複輸入
+  batchRows.push({ headcount: last.headcount || '' });
+  renderBatchRows();
+}
+function removeBatchRow(i){
+  syncBatchRowsFromDOM();
+  if(batchRows.length<=1) return;
+  batchRows.splice(i,1);
+  renderBatchRows();
+}
+function renderBatchRows(){
+  const box = document.getElementById('paintBatchContainer');
+  const rowsHtml = batchRows.map((row,i)=>`
+    <div class="batchRow" data-idx="${i}" style="border:1px solid #e2c8b0;border-radius:8px;padding:10px;margin-bottom:10px;background:#fffaf5">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+        <b style="color:var(--accent)">第 ${i+1} 筆</b>
+        ${batchRows.length>1?`<button type="button" onclick="removeBatchRow(${i})" style="background:#fdeaea;color:#c0392b;border:1px solid #f0c0c0;border-radius:6px;padding:3px 10px;font-size:12px">刪除</button>`:''}
+      </div>
+      <div class="gridAuto">
+        <div class="field"><label>排程單號</label><input class="b_sched" value="${row.sched||''}"></div>
+        <div class="field"><label>機型</label><input class="b_model" value="${row.model||''}"></div>
+        <div class="field"><label>烤漆內容</label><input class="b_content" value="${row.content||''}"></div>
+        <div class="field"><label>烤漆標工(秒)</label><input type="number" min="0" step="1" class="b_paint_std_s" value="${row.paint_std_s||''}"></div>
+        <div class="field"><label>當日人數</label><input type="number" min="0" step="1" class="b_headcount" value="${row.headcount||''}"></div>
+        <div class="field"><label>烤漆數量</label><input type="number" min="0" step="1" class="b_qty" value="${row.qty||''}"></div>
+        <div class="field"><label>除屑標工(秒)</label><input type="number" min="0" step="1" class="b_deburr_std_s" value="${row.deburr_std_s||''}"></div>
+        <div class="field"><label>打磨數量</label><input type="number" min="0" step="1" class="b_polish_qty" value="${row.polish_qty||''}"></div>
+        <div class="field"><label>轉速</label><input type="number" min="0" step="1" class="b_rpm" value="${row.rpm||''}"></div>
+      </div>
+    </div>`).join('');
+  box.innerHTML = `<p style="font-size:12px;color:#888;margin:0 0 8px">同一天可一次登錄多筆排程/工作項目，開始/結束/休息時間、人員、日期共用同一筆。</p>`
+    + rowsHtml
+    + `<button type="button" class="btn" onclick="addBatchRow()" style="width:100%;margin:4px 0 10px;background:#eef5ff;color:#2a5c8a;border:1px solid #b8d0e8;border-radius:8px;padding:8px;font-size:14px">+ 新增一筆排程</button>`;
+}
+
+function applyDeptLabels(deptKey){
+  const cfg = DEPT_CONFIG[deptKey] || DEPT_CONFIG[DEFAULT_DEPT];
+  const overrides = cfg.coreLabels || {};
+  const map = { content:'txt_content', qty:'txt_qty', sched:'txt_sched', model:'txt_model' };
+  Object.keys(map).forEach(k=>{
+    const el = document.getElementById(map[k]);
+    if(!el) return;
+    el.textContent = overrides[k] || (LANGS[currentLang] && LANGS[currentLang][k]) || el.textContent;
+  });
+}
+
+function initDeptSelect(){
+  const sel = document.getElementById('f_dept');
+  sel.innerHTML = Object.keys(DEPT_CONFIG).map(k=>`<option value="${k}">${k}</option>`).join('');
+  sel.value = DEFAULT_DEPT;
+  renderExtraFields(DEFAULT_DEPT);
+  applyDeptLabels(DEFAULT_DEPT);
+  sel.addEventListener('change', ()=>{
+    $('f_cat').value = '';
+    renderExtraFields(sel.value);
+    applyDeptLabels(sel.value);
+  });
+}
+initDeptSelect();
 
 // 語言字串取得
 function t(key){ return LANGS[currentLang][key] || LANGS['zh'][key] || key; }
@@ -400,20 +563,11 @@ try{
 }catch(e){}
 
 
-// ★★★ 請將 Supabase 設定填入這裡 ★★★
-const SUPABASE_URL = 'https://grfxgtznzqrfjnbjkqvs.supabase.co';
-const SUPABASE_KEY = 'sb_publishable_wU-9AjKmljlzUE3VmANNKA_M1gtYeTz';
-const TABLE_NAME   = 'worklog';
-// ★★★★★★★★★★★★★★★★★★★★★★★
-
-const $ = id => document.getElementById(id);
-
 // ── 自訂觸控下拉選單（取代原生 datalist，解決平板 Safari 無法下拉選的問題） ──
-const CAT_OPTIONS    = ['焊接','架模','鐳割','沖孔','彎管','沖壓','研磨','攻牙'];
 const PERSON_OPTIONS = ['呂揚斌','木哈曼','杜黃山','穆賽榮','羅俊民','鄭明欽','陳冠杰'];
 const MODEL_OPTIONS  = ['AD4','AF08','B3925/B3935','CC03OT','DA01UB','JLD173','JOHN02','TS01MB','工具車','銓量'];
 
-function attachCombobox(inputId, options){
+function attachCombobox(inputId, optionsSource){
   const input = document.getElementById(inputId);
   if(!input) return;
   input.classList.add('combo-input');
@@ -424,6 +578,7 @@ function attachCombobox(inputId, options){
   input.insertAdjacentElement('afterend', list);
 
   function renderList(){
+    const options = typeof optionsSource === 'function' ? optionsSource() : optionsSource;
     const q = (input.value||'').trim();
     const filtered = q ? options.filter(o=>o.includes(q)) : options;
     if(!filtered.length){ list.style.display='none'; return; }
@@ -451,7 +606,7 @@ function attachCombobox(inputId, options){
   });
 }
 
-attachCombobox('f_cat', CAT_OPTIONS);
+attachCombobox('f_cat', () => (DEPT_CONFIG[document.getElementById('f_dept').value] || DEPT_CONFIG[DEFAULT_DEPT]).catOptions);
 attachCombobox('f_person', PERSON_OPTIONS);
 attachCombobox('f_model', MODEL_OPTIONS);
 
@@ -542,7 +697,6 @@ $('btnSubmit').onclick=async()=>{
   const schedule=$('f_sched').value.trim();
   const qty=parseFloat($('f_qty').value)||0;
   const content=$('f_content').value.trim();
-  const spec=$('f_spec').value.trim();
   const note=$('f_note').value.trim();
   const mins=calcMins();
 
@@ -553,13 +707,57 @@ $('btnSubmit').onclick=async()=>{
   showStatus(t('sending'),'loading');
   $('btnSubmit').disabled=true;
 
-  const weld_len=parseFloat($('f_weld_len').value)||0;
-  const std_s=parseFloat($('f_std_s').value)||0;
-  const payload={
+  const deptKey = $('f_dept').value;
+  const deptCfg = DEPT_CONFIG[deptKey] || DEPT_CONFIG[DEFAULT_DEPT];
+  const isBatch = BATCH_DEPTS.includes(deptKey);
+
+  const common = {
     date, cat, person, machine, table_no, start_time:start, end_time:end,
-    rest_min:rest, work_mins:mins, schedule, model, content, qty, spec, note,
-    weld_len, std_s, created_at: new Date().toISOString()
+    rest_min:rest, work_mins:mins, dept: deptKey, created_at: new Date().toISOString()
   };
+
+  let payload; // 單一物件 或 陣列(批次)
+  let rowCount = 1;
+
+  if(isBatch){
+    syncBatchRowsFromDOM();
+    const validRows = batchRows.filter(r => (r.sched||r.model||r.content||r.qty));
+    if(!validRows.length){ showStatus('請至少填寫一筆排程資料','err'); $('btnSubmit').disabled=false; return; }
+    rowCount = validRows.length;
+    payload = validRows.map((r,idx)=>({
+      ...common,
+      schedule: (r.sched||'').trim(),
+      model: (r.model||'').trim(),
+      content: (r.content||'').trim(),
+      qty: parseFloat(r.qty)||0,
+      spec: '', weld_len: 0, std_s: 0,
+      note,
+      extra: {
+        paint_std_s: parseFloat(r.paint_std_s)||0,
+        headcount: parseFloat(r.headcount)||0,
+        deburr_std_s: parseFloat(r.deburr_std_s)||0,
+        polish_qty: parseFloat(r.polish_qty)||0,
+        rpm: parseFloat(r.rpm)||0,
+        // 同一批共用同一段工時，只有第一筆算入當天工時/工資彙總，避免報表重複加總
+        is_primary: idx===0,
+      }
+    }));
+  } else {
+    // 依目前選擇的部門,動態收集該部門專屬欄位
+    const extra = {};
+    deptCfg.extraFields.forEach(f=>{
+      const el = document.getElementById(f.id);
+      if(!el) return;
+      extra[f.key] = f.type==='number' ? (parseFloat(el.value)||0) : (el.value||'').trim();
+    });
+    // 製造部門的三個欄位維持寫入原本的資料表欄位(向下相容既有報表)
+    const weld_len = extra.weld_len ?? 0;
+    const std_s    = extra.std_s ?? 0;
+    const spec     = extra.spec ?? '';
+    payload={
+      ...common, schedule, model, content, qty, spec, note, weld_len, std_s, extra
+    };
+  }
 
   try{
     const res=await fetch(`${SUPABASE_URL}/rest/v1/${TABLE_NAME}`,{
@@ -573,7 +771,7 @@ $('btnSubmit').onclick=async()=>{
       body: JSON.stringify(payload)
     });
     if(res.ok){
-      showStatus(`${t('sent')} ${date} ${person} ${cat} ${(mins/60).toFixed(2)}${t('unit_h')}`,'ok');
+      showStatus(`${t('sent')} ${date} ${person} ${cat} ${(mins/60).toFixed(2)}${t('unit_h')}${isBatch?`（共 ${rowCount} 筆）`:''}`,'ok');
       clearForm();
       checkConn();
       setTimeout(loadRecent, 800);
@@ -588,8 +786,12 @@ $('btnSubmit').onclick=async()=>{
 };
 
 function clearForm(){
-  ['f_cat','f_person','f_model','f_machine','f_table','f_sched','f_qty','f_content','f_weld_len','f_std_s','f_spec','f_note']
-    .forEach(id=>$(id).value='');
+  ['f_cat','f_person','f_model','f_machine','f_table','f_sched','f_qty','f_content','f_note']
+    .forEach(id=>{ const el=$(id); if(el) el.value=''; });
+  const deptKey = $('f_dept').value;
+  const deptCfg = DEPT_CONFIG[deptKey] || DEPT_CONFIG[DEFAULT_DEPT];
+  deptCfg.extraFields.forEach(f=>{ const el=document.getElementById(f.id); if(el) el.value=''; });
+  if(BATCH_DEPTS.includes(deptKey)){ batchRows=[{}]; renderBatchRows(); }
   $('f_start_h').value=8; $('f_start_m').value=0;
   $('f_end_h').value=17; $('f_end_m').value=20;
   syncTime(); $('f_rest').value=80; updateCalc();
