@@ -172,7 +172,7 @@ input:focus,select:focus{outline:none;border-color:var(--accent);background:#fff
   <div id="paintBatchContainer" style="display:none">
     <p style="font-size:12px;color:#888;margin:0 0 8px">同一天可一次登錄多筆排程/工作項目，開始/結束/休息時間、人員、日期共用同一筆。</p>
   </div>
-  <div class="grid2">
+  <div class="grid2" id="fieldWrap_note">
     <div class="field"><label id="txt_note">備註</label><input type="text" id="f_note" placeholder="補充說明"></div>
   </div>
   <button class="btn btn-submit" id="btnSubmit">送出工時紀錄</button>
@@ -450,7 +450,7 @@ function renderExtraFields(deptKey){
   const isBatch = BATCH_DEPTS.includes(deptKey);
 
   // 切換單筆欄位(機型/排程單號/數量/工序內容)的顯示
-  ['fieldWrap_model','fieldWrap_schedQty','fieldWrap_content'].forEach(id=>{
+  ['fieldWrap_model','fieldWrap_schedQty','fieldWrap_content','fieldWrap_note'].forEach(id=>{
     const el = document.getElementById(id);
     if(el) el.style.display = isBatch ? 'none' : '';
   });
@@ -488,6 +488,7 @@ function syncBatchRowsFromDOM(){
     deburr_std_s: el.querySelector('.b_deburr_std_s').value,
     polish_qty:   el.querySelector('.b_polish_qty').value,
     rpm:          el.querySelector('.b_rpm').value,
+    note:         el.querySelector('.b_note').value,
   }));
 }
 function addBatchRow(){
@@ -521,6 +522,7 @@ function renderBatchRows(){
         <div class="field"><label>除屑標工(秒)</label><input type="number" min="0" step="1" class="b_deburr_std_s" value="${row.deburr_std_s||''}"></div>
         <div class="field"><label>打磨數量</label><input type="number" min="0" step="1" class="b_polish_qty" value="${row.polish_qty||''}"></div>
         <div class="field"><label>轉速</label><input type="number" min="0" step="1" class="b_rpm" value="${row.rpm||''}"></div>
+        <div class="field"><label>備註</label><input type="text" class="b_note" value="${row.note||''}" placeholder="這筆的補充說明"></div>
       </div>
     </div>`).join('');
   box.innerHTML = `<p style="font-size:12px;color:#888;margin:0 0 8px">同一天可一次登錄多筆排程/工作項目，開始/結束/休息時間、人員、日期共用同一筆。</p>`
@@ -731,7 +733,7 @@ $('btnSubmit').onclick=async()=>{
       content: (r.content||'').trim(),
       qty: parseFloat(r.qty)||0,
       spec: '', weld_len: 0, std_s: 0,
-      note,
+      note: (r.note||'').trim(),
       extra: {
         paint_std_s: parseFloat(r.paint_std_s)||0,
         headcount: parseFloat(r.headcount)||0,
