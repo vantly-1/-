@@ -115,14 +115,14 @@ input:focus,select:focus{outline:none;border-color:var(--accent);background:#fff
     </div>
   </div>
   <div class="grid2">
-    <div class="field"><label id="txt_person">人員姓名</label>
+    <div class="field" id="fieldWrap_person"><label id="txt_person">人員姓名</label>
       <input type="text" id="f_person" placeholder="選擇或輸入">
     </div>
     <div class="field" id="fieldWrap_model"><label id="txt_model">機型</label>
       <input type="text" id="f_model" placeholder="選擇或輸入">
     </div>
   </div>
-  <div class="grid2">
+  <div class="grid2" id="fieldWrap_machineTable">
     <div class="field"><label id="txt_machine">機台號碼</label><input type="text" id="f_machine" placeholder="例：A1、3號機"></div>
     <div class="field"><label id="txt_table">桌次</label><input type="text" id="f_table" placeholder="例：1+2、B3"></div>
   </div>
@@ -156,18 +156,27 @@ input:focus,select:focus{outline:none;border-color:var(--accent);background:#fff
   </div>
   <div class="grid2" id="fieldWrap_schedQty">
     <div class="field"><label id="txt_sched">排程單號</label><input type="text" id="f_sched" placeholder="自由輸入"></div>
-    <div class="field"><label id="txt_qty">數量</label><input type="number" id="f_qty" min="0" placeholder="產出數量"></div>
+    <div class="field"><label id="txt_qty">數量</label><input type="number" id="f_qty" min="0" placeholder="產出數量" oninput="updateCalc()"></div>
   </div>
   <div class="calc" id="calcBox">
     <div><div class="lbl" id="txt_hrs">實際工時</div><div class="val" id="calcH">7.33 時</div></div>
     <div><div class="lbl" id="txt_min">分鐘數</div><div class="val" id="calcM">440 分</div></div>
     <div class="warn" id="calcWarn"></div>
   </div>
+  <div class="calc" id="assyCalcBox" style="display:none;background:#fff4e9">
+    <div><div class="lbl">應完成數量</div><div class="val" id="assyExpQty">-</div></div>
+    <div><div class="lbl">預估效率</div><div class="val" id="assyEffVal">-</div></div>
+  </div>
 </div>
 
 <div class="card">
   <h2 id="txt_process">工序內容</h2>
   <div class="field" id="fieldWrap_content"><label id="txt_content">工序內容</label><input type="text" id="f_content" placeholder="例：後貼地管組"></div>
+  <div class="field" id="fieldWrap_assyPerson" style="display:none">
+    <label>組裝人員（代碼，多人以逗號分隔）</label>
+    <input type="text" id="f_assy_person" placeholder="例：M14, W3">
+    <div id="assyPersonHint" style="font-size:11px;color:#7a8898;margin-top:5px;line-height:1.7"></div>
+  </div>
   <div class="gridAuto" id="extraFieldsContainer"></div>
   <div id="paintBatchContainer" style="display:none">
     <p style="font-size:12px;color:#888;margin:0 0 8px">同一天可一次登錄多筆排程/工作項目，開始/結束/休息時間、人員、日期共用同一筆。</p>
@@ -175,9 +184,44 @@ input:focus,select:focus{outline:none;border-color:var(--accent);background:#fff
   <div class="grid2" id="fieldWrap_note">
     <div class="field"><label id="txt_note">備註</label><input type="text" id="f_note" placeholder="補充說明"></div>
   </div>
+  <div class="field" id="fieldWrap_assyExtraNotes" style="display:none">
+    <label>額外備註（可新增多筆，用於補充紀錄）</label>
+    <div id="assyExtraNotesList"></div>
+    <button type="button" class="btn btn-clear" style="margin-top:6px;padding:6px 14px;font-size:12px;width:auto" onclick="addAssyExtraNoteRow()">＋ 新增一筆備註</button>
+  </div>
   <button class="btn btn-submit" id="btnSubmit">送出工時紀錄</button>
   <button class="btn btn-clear" id="btnClear"><span id="txt_clear">清空表單</span></button>
   <div class="status" id="statusMsg"></div>
+</div>
+
+<div class="card" id="assyAttendanceCard" style="display:none">
+  <h2>出勤 / 請假登記（08:00-17:20，每日登記一次即可）</h2>
+  <p style="font-size:12px;color:#888;margin-bottom:10px">這裡跟上面的工時紀錄是分開的，一天只要登記一次；不用每筆工序都重填。</p>
+  <div style="font-size:12px;font-weight:700;color:var(--steel);margin:6px 0">出勤人數</div>
+  <div class="grid2">
+    <div class="field"><label>組裝出勤人數</label><input type="number" id="f_att_assy_present" min="0" placeholder="人數"></div>
+    <div class="field"><label>組裝出勤備註</label><input type="text" id="f_att_assy_present_note" placeholder="例：5人(8H)"></div>
+  </div>
+  <div class="grid2">
+    <div class="field"><label>外勞出勤人數</label><input type="number" id="f_att_foreign_present" min="0" placeholder="人數"></div>
+    <div class="field"><label>外勞出勤備註</label><input type="text" id="f_att_foreign_present_note" placeholder="例：2人(8H)"></div>
+  </div>
+  <div style="font-size:12px;font-weight:700;color:var(--steel);margin:14px 0 6px">請假人數</div>
+  <div class="grid2">
+    <div class="field"><label>組裝請假人數</label><input type="number" id="f_att_assy_leave" min="0" placeholder="人數"></div>
+    <div class="field"><label>組裝請假備註</label><input type="text" id="f_att_assy_leave_note" placeholder="例：事假1人"></div>
+  </div>
+  <div class="grid2">
+    <div class="field"><label>外勞請假人數</label><input type="number" id="f_att_foreign_leave" min="0" placeholder="人數"></div>
+    <div class="field"><label>外勞請假備註</label><input type="text" id="f_att_foreign_leave_note" placeholder="補充說明"></div>
+  </div>
+  <div style="font-size:12px;font-weight:700;color:var(--steel);margin:14px 0 6px">工停人數</div>
+  <div class="grid2">
+    <div class="field"><label>工停人數</label><input type="number" id="f_att_stoppage" min="0" placeholder="人數"></div>
+    <div class="field"><label>工停備註</label><input type="text" id="f_att_stoppage_note" placeholder="例：等料2人"></div>
+  </div>
+  <button class="btn btn-submit" id="btnSubmitAtt" style="background:var(--steel)">送出出勤/請假登記</button>
+  <div class="status" id="attStatusMsg"></div>
 </div>
 
 <div class="card">
@@ -407,6 +451,15 @@ const TABLE_NAME   = 'worklog';
 
 const $ = id => document.getElementById(id);
 
+// 裝配部門人員代碼對照表（跟報表系統共用同一份，方便主管簽核核對）
+const ASSY_PERSON_CODES = [
+  {code:'M1',  name:'陳威儒'}, {code:'M4',  name:'鄭任凱'},
+  {code:'M6',  name:'陳冠杰'}, {code:'M9',  name:'力 諾'},  {code:'M14', name:'黃宏為'},
+  {code:'M15', name:'陳高科'},
+  {code:'W1',  name:'劉菊圓'}, {code:'W3',  name:'蔡玲玲'}, {code:'W4',  name:'陳婉筠'},
+  {code:'W6',  name:'阮金稔'}, {code:'W7',  name:'阮氏邐'}, {code:'W10', name:'黃鈺婷'},
+];
+
 // ══════════════════════════════════════
 // 部門單位設定（要新增單位，只要在這裡加一個區塊）
 // ══════════════════════════════════════
@@ -432,9 +485,12 @@ const DEPT_CONFIG = {
   },
   '裝配': {
     catOptions: ['組裝','測試','包裝','品管'],
+    coreLabels: { content:'組裝內容', qty:'完成數量' },
+    hideCore: ['fieldWrap_person','fieldWrap_machineTable'],
     extraFields: [
-      {id:'f_bom_no',      key:'bom_no',      label:'BOM 料號',   type:'text',   placeholder:'例：BOM-2026-0113'},
-      {id:'f_assy_qty',    key:'assy_qty',    label:'組裝數量',   type:'number', step:'1', placeholder:'組裝完成數量'},
+      {id:'f_std_s',       key:'std_s',           label:'標工 (秒)',      type:'number', step:'1', placeholder:'標準工時秒數'},
+      {id:'f_dispatch',    key:'dispatch',        label:'派工人數',       type:'number', step:'1', placeholder:'應派工人數'},
+      {id:'f_actual_dispatch', key:'actual_dispatch', label:'實際派工人數', type:'number', step:'1', placeholder:'實際到工人數'},
       {id:'f_defect_qty',  key:'defect_qty',  label:'不良數量',   type:'number', step:'1', placeholder:'不良品數量'},
     ]
   },
@@ -469,8 +525,88 @@ function renderExtraFields(deptKey){
     extraBox.innerHTML = cfg.extraFields.map(f=>`
       <div class="field">
         <label>${f.label}</label>
-        <input type="${f.type}" id="${f.id}" ${f.type==='number' ? `min="0" step="${f.step||'1'}"` : ''} placeholder="${f.placeholder||''}">
+        <input type="${f.type}" id="${f.id}" ${f.type==='number' ? `min="0" step="${f.step||'1'}"` : ''} placeholder="${f.placeholder||''}" oninput="updateCalc()">
       </div>`).join('');
+  }
+
+  const assyBox = document.getElementById('assyCalcBox');
+  if(assyBox) assyBox.style.display = (deptKey==='裝配' && !isBatch) ? 'flex' : 'none';
+
+  // 依部門設定隱藏/顯示共用核心欄位(人員姓名/機台桌次等)
+  const HIDEABLE_CORE_IDS = ['fieldWrap_person','fieldWrap_machineTable'];
+  const hideList = cfg.hideCore || [];
+  HIDEABLE_CORE_IDS.forEach(id=>{
+    const el = document.getElementById(id);
+    if(el) el.style.display = hideList.includes(id) ? 'none' : '';
+  });
+
+  // 裝配部門專屬：組裝人員(代碼)欄位 + 代碼對照提示 + 出勤/請假登記卡片
+  const isAssyDept = deptKey==='裝配';
+  const assyPersonWrap = document.getElementById('fieldWrap_assyPerson');
+  if(assyPersonWrap) assyPersonWrap.style.display = isAssyDept ? '' : 'none';
+  const attCard = document.getElementById('assyAttendanceCard');
+  if(attCard) attCard.style.display = isAssyDept ? '' : 'none';
+  const hintEl = document.getElementById('assyPersonHint');
+  if(hintEl && isAssyDept && !hintEl.dataset.filled){
+    hintEl.textContent = '代碼對照：' + ASSY_PERSON_CODES.map(p=>`${p.code} ${p.name}`).join('、');
+    hintEl.dataset.filled = '1';
+  }
+  const extraNotesWrap = document.getElementById('fieldWrap_assyExtraNotes');
+  if(extraNotesWrap){
+    extraNotesWrap.style.display = isAssyDept ? '' : 'none';
+    const list = document.getElementById('assyExtraNotesList');
+    if(isAssyDept && list && list.children.length===0) addAssyExtraNoteRow();
+  }
+
+  updateCalc();
+}
+
+// ── 裝配部門：額外備註（可新增多筆） ──
+let assyExtraNoteSeq = 0;
+function addAssyExtraNoteRow(value=''){
+  const list = document.getElementById('assyExtraNotesList');
+  if(!list) return;
+  const rid = 'assyNote_' + (assyExtraNoteSeq++);
+  list.insertAdjacentHTML('beforeend', `
+    <div class="grid2" id="${rid}" style="margin-top:6px;align-items:center">
+      <input type="text" class="assy-extra-note-input" placeholder="補充紀錄內容" value="${value.replace(/"/g,'&quot;')}" style="grid-column:1/2">
+      <button type="button" class="btn-del-sm" style="justify-self:start" onclick="document.getElementById('${rid}').remove()">移除</button>
+    </div>`);
+}
+function collectAssyExtraNotes(){
+  return Array.from(document.querySelectorAll('.assy-extra-note-input'))
+    .map(el=>el.value.trim())
+    .filter(Boolean);
+}
+function resetAssyExtraNotes(){
+  const list = document.getElementById('assyExtraNotesList');
+  if(list){ list.innerHTML=''; addAssyExtraNoteRow(); }
+}
+
+// ── 裝配部門：即時預估「應完成數量」與「效率」 ──
+// 應完成數量 = 總工時(秒) / 標工(秒)
+// 效率 = 數量效率(完成數量/應完成數量) × 人力效率(派工人數/實際派工人數)
+function updateAssyPreview(mins){
+  const deptKey = document.getElementById('f_dept')?.value;
+  if(deptKey !== '裝配') return;
+  const stdS = parseFloat(document.getElementById('f_std_s')?.value) || 0;
+  const dispatch = parseFloat(document.getElementById('f_dispatch')?.value) || 0;
+  const actualDispatch = parseFloat(document.getElementById('f_actual_dispatch')?.value) || 0;
+  const qty = parseFloat(document.getElementById('f_qty')?.value) || 0;
+  const expQtyEl = document.getElementById('assyExpQty');
+  const effEl = document.getElementById('assyEffVal');
+  if(!expQtyEl || !effEl) return;
+
+  const expQty = (mins>0 && stdS>0) ? Math.round(mins*60/stdS) : 0;
+  expQtyEl.textContent = expQty || '-';
+
+  const qtyEff = (qty && stdS && mins) ? (qty*stdS)/(mins*60) : null;
+  const laborEff = (dispatch && actualDispatch) ? dispatch/actualDispatch : 1;
+  const totalEff = qtyEff!==null ? qtyEff*laborEff : null;
+  if(totalEff===null){ effEl.textContent='-'; effEl.style.color=''; }
+  else{
+    effEl.textContent = (totalEff*100).toFixed(1)+'%';
+    effEl.style.color = totalEff>=1 ? '#2a7a4a' : (totalEff<0.8 ? '#b83030' : '');
   }
 }
 
@@ -685,15 +821,23 @@ function updateCalc(){
   const m=calcMins();
   $('calcH').textContent=(m/60).toFixed(2)+' '+t('unit_h');
   $('calcM').textContent=m+' '+t('unit_m');
+  updateAssyPreview(m);
 }
 ['f_start_h','f_start_m','f_end_h','f_end_m','f_rest'].forEach(id=>$(id).addEventListener('input',updateCalc));
 updateCalc();
 
 // ── 送出 ──
 $('btnSubmit').onclick=async()=>{
+  const deptKey = $('f_dept').value;
+  const deptCfg = DEPT_CONFIG[deptKey] || DEPT_CONFIG[DEFAULT_DEPT];
+  const isBatch = BATCH_DEPTS.includes(deptKey);
+  const isAssyDept = deptKey==='裝配';
+
   const date=$('f_date').value, cat=$('f_cat').value.trim();
-  const person=$('f_person').value.trim(), model=$('f_model').value.trim();
-  const machine=$('f_machine').value.trim(), table_no=$('f_table').value.trim();
+  const person = isAssyDept ? ($('f_assy_person')?.value||'').trim() : $('f_person').value.trim();
+  const model=$('f_model').value.trim();
+  const machine = isAssyDept ? '' : $('f_machine').value.trim();
+  const table_no = isAssyDept ? '' : $('f_table').value.trim();
   const start=$('f_start').value, end=$('f_end').value;
   const rest=parseInt($('f_rest').value||'0');
   const schedule=$('f_sched').value.trim();
@@ -703,15 +847,11 @@ $('btnSubmit').onclick=async()=>{
   const mins=calcMins();
 
   if(!date){ showStatus(t('err_date'),'err'); return; }
-  if(!person){ showStatus(t('err_person'),'err'); return; }
+  if(!person){ showStatus(isAssyDept ? '請輸入組裝人員代碼' : t('err_person'),'err'); return; }
   if(mins<=0){ showStatus(t('err_time'),'err'); return; }
 
   showStatus(t('sending'),'loading');
   $('btnSubmit').disabled=true;
-
-  const deptKey = $('f_dept').value;
-  const deptCfg = DEPT_CONFIG[deptKey] || DEPT_CONFIG[DEFAULT_DEPT];
-  const isBatch = BATCH_DEPTS.includes(deptKey);
 
   const common = {
     date, cat, person, machine, table_no, start_time:start, end_time:end,
@@ -756,6 +896,7 @@ $('btnSubmit').onclick=async()=>{
     const weld_len = extra.weld_len ?? 0;
     const std_s    = extra.std_s ?? 0;
     const spec     = extra.spec ?? '';
+    if(isAssyDept) extra.extra_notes = collectAssyExtraNotes();
     payload={
       ...common, schedule, model, content, qty, spec, note, weld_len, std_s, extra
     };
@@ -788,12 +929,13 @@ $('btnSubmit').onclick=async()=>{
 };
 
 function clearForm(){
-  ['f_cat','f_person','f_model','f_machine','f_table','f_sched','f_qty','f_content','f_note']
+  ['f_cat','f_person','f_model','f_machine','f_table','f_sched','f_qty','f_content','f_note','f_assy_person']
     .forEach(id=>{ const el=$(id); if(el) el.value=''; });
   const deptKey = $('f_dept').value;
   const deptCfg = DEPT_CONFIG[deptKey] || DEPT_CONFIG[DEFAULT_DEPT];
   deptCfg.extraFields.forEach(f=>{ const el=document.getElementById(f.id); if(el) el.value=''; });
   if(BATCH_DEPTS.includes(deptKey)){ batchRows=[{}]; renderBatchRows(); }
+  if(deptKey==='裝配') resetAssyExtraNotes();
   $('f_start_h').value=8; $('f_start_m').value=0;
   $('f_end_h').value=17; $('f_end_m').value=20;
   syncTime(); $('f_rest').value=80; updateCalc();
@@ -805,6 +947,66 @@ function showStatus(msg,type){
   el.textContent=msg; el.className='status '+type;
   if(type==='ok') setTimeout(()=>{el.className='status';},4000);
 }
+
+// ── 裝配部門：出勤/請假登記（每日一筆，跟工序紀錄分開送出） ──
+function showAttStatus(msg,type){
+  const el=$('attStatusMsg');
+  if(!el) return;
+  el.textContent=msg; el.className='status '+type;
+  if(type==='ok') setTimeout(()=>{el.className='status';},4000);
+}
+const btnAtt = document.getElementById('btnSubmitAtt');
+if(btnAtt) btnAtt.onclick = async()=>{
+  const date = $('f_date').value;
+  if(!date){ showAttStatus(t('err_date'),'err'); return; }
+
+  const num = id => parseFloat($(id)?.value)||0;
+  const txt = id => ($(id)?.value||'').trim();
+  const extra = {
+    record_type: 'attendance',
+    assy_present: num('f_att_assy_present'), assy_present_note: txt('f_att_assy_present_note'),
+    foreign_present: num('f_att_foreign_present'), foreign_present_note: txt('f_att_foreign_present_note'),
+    assy_leave: num('f_att_assy_leave'), assy_leave_note: txt('f_att_assy_leave_note'),
+    foreign_leave: num('f_att_foreign_leave'), foreign_leave_note: txt('f_att_foreign_leave_note'),
+    stoppage: num('f_att_stoppage'), stoppage_note: txt('f_att_stoppage_note'),
+  };
+  const payload = {
+    date, cat:'出勤登記', person:'(考勤)', machine:'', table_no:'',
+    start_time:'', end_time:'', rest_min:0, work_mins:0,
+    dept:'裝配', schedule:'', model:'', content:'出勤/請假登記',
+    qty:0, spec:'', note:'', weld_len:0, std_s:0,
+    extra, created_at: new Date().toISOString(),
+  };
+
+  showAttStatus(t('sending'),'loading');
+  btnAtt.disabled = true;
+  try{
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/${TABLE_NAME}`,{
+      method:'POST',
+      headers:{
+        'apikey':SUPABASE_KEY,
+        'Authorization':'Bearer '+SUPABASE_KEY,
+        'Content-Type':'application/json',
+        'Prefer':'return=minimal'
+      },
+      body: JSON.stringify(payload)
+    });
+    if(res.ok){
+      showAttStatus(`✓ 已送出 ${date} 出勤/請假登記`,'ok');
+      ['f_att_assy_present','f_att_assy_present_note','f_att_foreign_present','f_att_foreign_present_note',
+       'f_att_assy_leave','f_att_assy_leave_note','f_att_foreign_leave','f_att_foreign_leave_note',
+       'f_att_stoppage','f_att_stoppage_note'].forEach(id=>{ const el=$(id); if(el) el.value=''; });
+      checkConn();
+      setTimeout(loadRecent, 800);
+    } else {
+      const err = await res.text();
+      showAttStatus(t('send_fail')+err,'err');
+    }
+  } catch(e){
+    showAttStatus(t('net_err')+e.message,'err');
+  }
+  btnAtt.disabled = false;
+};
 
 $('btnClear').onclick=()=>{ clearForm(); $('statusMsg').className='status'; };
 // 用本地時間設定今天日期（避免 UTC 時差問題）
